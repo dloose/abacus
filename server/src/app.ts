@@ -1,4 +1,5 @@
 import * as express from "express";
+import symbols from "./routes/symbols";
 import * as Config from "./services/config";
 
 function notFound(req: express.Request, res: express.Response, next: express.NextFunction): void {
@@ -14,6 +15,7 @@ function errorHandler(err: any, req: express.Request, res: express.Response, nex
 
 const router = express.Router();
 
+router.use("/symbol", symbols());
 router.use(notFound);
 router.use(errorHandler);
 
