@@ -1,0 +1,23 @@
+{
+    "compileOnSave": true,
+
+    "compilerOptions": {
+        "forceConsistentCasingInFileNames": true,
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "outDir": "./build",
+        "sourceMap": true,
+        "strictNullChecks": true,
+        "target": "ES2017"
+    },
+
+    "include": [
+        "./src"
+    ],
+    
+    "exclude": [
+        "./node_modules"
+    ]
+}

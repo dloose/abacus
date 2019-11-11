@@ -1,0 +1,70 @@
+version: "3.7"
+
+services:
+  database:
+    image: dloose-abacus-stock-db:${DOCKER_IMAGE_TAG}
+    build:
+      context: ./database
+    environment:
+      PGDATA: /abacus-stock-db/data
+      <<: &db-config
+        POSTGRES_DB: "${POSTGRES_DB}"
+        POSTGRES_HOST: "database"
+        POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+        POSTGRES_PORT: "${POSTGRES_PORT}"
+        POSTGRES_SCHEMA: "${POSTGRES_SCHEMA}"
+        POSTGRES_USER: "${POSTGRES_USER}"
+    ports:
+      - 5432:5432/tcp
+
+  rabbitmq:
+    image: rabbitmq:3
+    environment:
+      <<: &rabbitmq-config
+        RABBITMQ_HOST: "rabbitmq"
+        RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER}"
+        RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS}"
+      <<: &celery-config
+        CELERY_BROKER_URL: "amqp://${RABBITMQ_DEFAULT_PASS}:${RABBITMQ_DEFAULT_PASS}@rabbitmq//"
+        CELERY_RESULT_BACKEND: "rpc://${RABBITMQ_DEFAULT_PASS}:${RABBITMQ_DEFAULT_PASS}@rabbitmq//"
+    ports:
+      - 5672:5672
+
+  server:
+    image: dloose-abacus-stock-server:${DOCKER_IMAGE_TAG}
+    build:
+      context: ./server
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      <<: *celery-config
+      <<: *db-config
+    ports:
+      - 3000:3000/tcp
+    depends_on:
+      - database
+    volumes:
+      - ./server/src:/abacus-stock-server/src:rw
+    command: yarn run start
+
+  beat:
+    image: &worker-image dloose-abacus-stock-worker:${DOCKER_IMAGE_TAG}
+    build:
+      context: ./worker
+    environment:
+      <<: *rabbitmq-config
+      <<: *db-config
+    depends_on:
+      - rabbitmq
+    command: "celery beat --app=worker.app --loglevel=info"
+
+  worker:
+    image: *worker-image
+    environment:
+      <<: *rabbitmq-config
+      <<: *db-config
+      ALPHA_ADVANTAGE_API_KEY: "${ALPHA_ADVANTAGE_API_KEY}"
+    depends_on:
+      - beat
+      - rabbitmq
+    command: "celery worker --app=worker.app --pool=gevent --concurrency=20 --loglevel=info"
