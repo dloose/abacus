@@ -76,7 +76,7 @@ export default function init(): express.Router {
                     symbols.*, 
                     coalesce(
                         jsonb_agg(symbol_data.* ORDER BY symbol_data.date DESC) 
-                            FILTER (WHERE symbol_data.date BETWEEN NOW() AND NOW() - '100 days' :: INTERVAL), 
+                            FILTER (WHERE symbol_data.date BETWEEN CURRENT_DATE - '100 days' :: INTERVAL AND CURRENT_DATE), 
                         '[]' :: JSONB) AS data 
                 FROM symbols
                   LEFT JOIN symbol_data ON symbols.symbol = symbol_data.symbol
