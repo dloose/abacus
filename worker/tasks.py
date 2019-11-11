@@ -37,10 +37,14 @@ def request_stock_data(symbol, output_size="compact"):
             }
 
 
-def compute_sma_rsi(symbol, start=None, window_size=100):
+# Alpha Advantage will spit these numbers out too, but the calculation isn't too hard
+def compute_sma_rsi(symbol, start=None):
     logger.info(f"Computing SMA and RSI for {symbol}")
 
+    window_size = 100
     with connect() as conn, conn.cursor(cursor_factory=DictCursor) as cur:
+        # When start is specified, we go back 200 days even though the window_size is 100. This is a lazy way to
+        # account for weekends and holidays. I'm assuming "100 days" means 100 market days and not 100 calendar days.
         query = sql.Composed([
             sql.SQL("""
                 SELECT 
@@ -72,17 +76,17 @@ def compute_sma_rsi(symbol, start=None, window_size=100):
     up[up < 0] = 0
     down[down > 0] = 0
 
-    # Calculate the SMA
-    roll_up = up.rolling(window_size).mean()
-    roll_down = down.abs().rolling(window_size).mean()
+    # Calculate the SMA for both series
+    up_sma = up.rolling(window_size).mean()
+    down_sma = down.abs().rolling(window_size).mean()
 
-    # Calculate the RSI based on SMA
-    rsi_step1 = roll_up / roll_down
+    # Calculate the RSI based on the SMA series
+    rsi_step1 = up_sma / down_sma
     rsi_step2 = 100.0 - (100.0 / (1.0 + rsi_step1))
 
+    # Reformat the data for easier database updates
     df.insert(len(df.columns), "sma", sma)
     df.insert(len(df.columns), "rsi", rsi_step2)
-
     data = [
         {
             "symbol": symbol,
@@ -122,7 +126,7 @@ def initial_import(symbol):
 
     logger.info(f"Running initial import for {symbol}")
 
-    # Fetch the data
+    # Fetch the full 20 years of data for the initial import
     data = request_stock_data(symbol, output_size="full")
 
     with connect() as conn, conn.cursor(cursor_factory=DictCursor) as cur:
@@ -147,25 +151,27 @@ def initial_import(symbol):
 def update_symbol(symbol):
     logger.info(f"Running update for {symbol}")
 
-    # Fetch the data
+    # The "compact" option gets 100 days worth of data instead of 20 years.
+    # A little more flexibility here would be nice.
     data = request_stock_data(symbol, output_size="compact")
 
     with connect() as conn, conn.cursor(cursor_factory=DictCursor) as cur:
+        # The only record that should change is today's so updating all of them is wasteful. Oh well.
         execute_values(
             cur,
             """
                 INSERT INTO symbol_data (symbol, date, open, close, high, low) 
                 VALUES %s
-                ON CONFLICT (symbol, date) DO NOTHING
-                RETURNING *
+                ON CONFLICT (symbol, date) DO UPDATE SET
+                    OPEN = EXCLUDED.open,
+                    CLOSE = EXCLUDED.close,
+                    high = EXCLUDED.high,
+                    low = EXCLUDED.low
             """,
             data,
             template="(%(symbol)s, %(date)s, %(open)s, %(close)s, %(high)s, %(low)s)",
             fetch=True
         )
-
-        new_records = [dict(r) for r in cur.fetchall()]
-        logger.info(f"Found {len(new_records)} new records for {symbol}")
 
         cur.execute("""
             UPDATE symbols 
@@ -173,13 +179,14 @@ def update_symbol(symbol):
             WHERE symbol = %s
         """, [symbol])
 
-    compute_sma_rsi(symbol)
+    start_date = datetime.date.today().isoformat()
+    compute_sma_rsi(symbol, start=start_date)
 
 
 @app.task()
 def update_symbols():
     with connect() as conn, conn.cursor() as cur:
-        cur.execute("SELECT symbol FROM symbols WHERE last_update_date < CURRENT_DATE")
+        cur.execute("SELECT symbol FROM symbols")
         symbols = [record[0] for record in cur.fetchall()]
 
     for symbol in symbols:
@@ -190,6 +197,7 @@ def update_symbols():
 def generate_csv_report(symbol):
     logger.info(f"Generating CSV report for {symbol}")
 
+    # Select 1 years worth of data for the current symbol
     with connect() as conn, conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute(
             """
@@ -203,6 +211,8 @@ def generate_csv_report(symbol):
 
         data = [dict(r) for r in cur.fetchall()]
 
+    # Dump the data to the file system in CSV format. In real life I'd probably write this to S3 and link to it from
+    # the client app.
     date_string = datetime.date.today().isoformat()
     file_name = f"{date_string}.csv"
     report_path = Path(os.environ["CSV_REPORT_ROOT_PATH"], symbol, file_name)
