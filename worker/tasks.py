@@ -170,7 +170,6 @@ def update_symbol(symbol):
             """,
             data,
             template="(%(symbol)s, %(date)s, %(open)s, %(close)s, %(high)s, %(low)s)",
-            fetch=True
         )
 
         cur.execute("""
