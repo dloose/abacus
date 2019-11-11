@@ -64,7 +64,13 @@ services:
       <<: *rabbitmq-config
       <<: *db-config
       ALPHA_ADVANTAGE_API_KEY: "${ALPHA_ADVANTAGE_API_KEY}"
+      CSV_REPORT_ROOT_PATH: "/reports"
     depends_on:
       - beat
       - rabbitmq
     command: "celery worker --app=worker.app --pool=gevent --concurrency=20 --loglevel=info"
+    volumes:
+      - "reports:/reports"
+
+volumes:
+  reports:

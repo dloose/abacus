@@ -1,5 +1,8 @@
+import csv
+import datetime
 import logging
 import os
+from pathlib import Path
 
 import pandas as pd
 import requests
@@ -181,3 +184,45 @@ def update_symbols():
 
     for symbol in symbols:
         update_symbol.delay(symbol)
+
+
+@app.task()
+def generate_csv_report(symbol):
+    logger.info(f"Generating CSV report for {symbol}")
+
+    with connect() as conn, conn.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute(
+            """
+                SELECT symbol, date, open, close, high, low, sma100d, rsi100d
+                FROM symbol_data 
+                WHERE symbol = %s AND date > CURRENT_DATE - '1 year' :: INTERVAL
+                ORDER BY date 
+            """,
+            [symbol]
+        )
+
+        data = [dict(r) for r in cur.fetchall()]
+
+    date_string = datetime.date.today().isoformat()
+    file_name = f"{date_string}.csv"
+    report_path = Path(os.environ["CSV_REPORT_ROOT_PATH"], symbol, file_name)
+
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    with report_path.open('w') as csv_file:
+        writer = csv.DictWriter(
+            csv_file,
+            fieldnames=["symbol", "date", "open", "close", "high", "low", "sma100d", "rsi100d"]
+        )
+        writer.writeheader()
+        for d in data:
+            writer.writerow(d)
+
+
+@app.task()
+def generate_csv_reports():
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute("SELECT symbol FROM symbols")
+        symbols = [record[0] for record in cur.fetchall()]
+
+    for symbol in symbols:
+        generate_csv_report.delay(symbol)

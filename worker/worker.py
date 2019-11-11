@@ -18,8 +18,12 @@ app = Celery(
 )
 
 app.conf.beat_schedule = {
-    "refresh": {
+    "update_symbols": {
         "task": "tasks.update_symbols",
-        "schedule": crontab(minute="*/5"),
+        "schedule": crontab(hour="*/1"),
+    },
+    "generate_reports": {
+        "task": "tasks.generate_csv_reports",
+        "schedule": crontab(minute="*/1"),
     },
 }
