@@ -1,4 +1,5 @@
 import * as express from "express";
+import * as Config from "./services/config";
 
 function notFound(req: express.Request, res: express.Response, next: express.NextFunction): void {
     res.sendStatus(404);
@@ -19,7 +20,8 @@ router.use(errorHandler);
 const app = express();
 app.use("/", router);
 
-app.listen(3000, () => {
-    console.log(`Server running on port 3000`);
+const config: Config.AppConfig = Config.get().app;
+app.listen(config.port, () => {
+    console.log(`Server running on port ${config.port}`);
 });
 
