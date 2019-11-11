@@ -24,6 +24,6 @@ app.conf.beat_schedule = {
     },
     "generate_reports": {
         "task": "tasks.generate_csv_reports",
-        "schedule": crontab(minute="*/1"),
+        "schedule": crontab(hour="18"),
     },
 }
