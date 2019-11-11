@@ -52,7 +52,7 @@ def compute_sma_rsi(symbol, start=None):
                 FROM symbol_data
                 WHERE symbol = %s
             """),
-            sql.SQL(" AND date > %s - '200 days' :: INTERVAL") if start else sql.SQL(""),
+            sql.SQL(" AND date > %s :: DATE - '200 days' :: INTERVAL") if start else sql.SQL(""),
             sql.SQL(" ORDER BY date")
         ])
         params = [symbol, start] if start else [symbol]
