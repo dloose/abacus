@@ -5,6 +5,13 @@ import {call} from "../services/celery";
 import {connect} from "../services/database";
 import {asyncRoute} from "../util/routes";
 
+function normalizeSymbol(req: express.Request, res: express.Response, next: express.NextFunction) {
+    if (req.params.symbol) {
+        req.params.symbol = req.params.symbol.toUpperCase();
+    }
+    next();
+}
+
 export default function init(): express.Router {
     const router = express.Router();
 
@@ -29,6 +36,7 @@ export default function init(): express.Router {
 
     // add a new symbol
     router.post("/:symbol",
+        normalizeSymbol,
         asyncRoute(async function addSymbol(req, res) {
             const symbol = req.params.symbol;
 
@@ -57,6 +65,7 @@ export default function init(): express.Router {
 
     // return data for a single symbol
     router.get("/:symbol",
+        normalizeSymbol,
         asyncRoute(async function getSymbolData(req, res) {
             const symbol = req.params.symbol;
 
