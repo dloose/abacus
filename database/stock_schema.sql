@@ -16,4 +16,4 @@ CREATE TABLE symbol_data (
     rsi100d NUMERIC
 );
 
-CREATE INDEX ON symbol_data(symbol, date DESC);
+CREATE UNIQUE INDEX ON symbol_data(symbol, date DESC);

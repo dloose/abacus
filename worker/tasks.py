@@ -59,7 +59,9 @@ def compute_sma_rsi(symbol, start=None, window_size=100):
 
     sma = close.rolling(window_size).mean()
 
-    # Get the difference in price from previous step
+    # Code adapted from https://stackoverflow.com/a/29400434
+
+    # Get the difference in price
     delta = close - open
 
     # Make the positive gains (up) and negative gains (down) Series
@@ -104,8 +106,6 @@ def compute_sma_rsi(symbol, start=None, window_size=100):
             page_size=1000
         )
 
-        cur.execute("UPDATE symbols SET last_update_date = CURRENT_DATE WHERE symbol = %s", [symbol])
-
 
 @app.task()
 def initial_import(symbol):
@@ -131,7 +131,11 @@ def initial_import(symbol):
             page_size=1000
         )
 
-        cur.execute("UPDATE symbols SET initial_import_date = NOW() WHERE symbol = %s", [symbol])
+        cur.execute("""
+            UPDATE symbols 
+            SET initial_import_date = CURRENT_TIMESTAMP, last_update_date = CURRENT_DATE 
+            WHERE symbol = %s
+        """, [symbol])
 
     compute_sma_rsi(symbol)
 
@@ -139,6 +143,33 @@ def initial_import(symbol):
 @app.task()
 def update_symbol(symbol):
     logger.info(f"Running update for {symbol}")
+
+    # Fetch the data
+    data = request_stock_data(symbol, output_size="compact")
+
+    with connect() as conn, conn.cursor(cursor_factory=DictCursor) as cur:
+        execute_values(
+            cur,
+            """
+                INSERT INTO symbol_data (symbol, date, open, close, high, low) 
+                VALUES %s
+                ON CONFLICT (symbol, date) DO NOTHING
+                RETURNING *
+            """,
+            data,
+            template="(%(symbol)s, %(date)s, %(open)s, %(close)s, %(high)s, %(low)s)",
+            fetch=True
+        )
+
+        new_records = [dict(r) for r in cur.fetchall()]
+        logger.info(f"Found {len(new_records)} new records for {symbol}")
+
+        cur.execute("""
+            UPDATE symbols 
+            SET last_update_date = CURRENT_DATE 
+            WHERE symbol = %s
+        """, [symbol])
+
     compute_sma_rsi(symbol)
 
 
