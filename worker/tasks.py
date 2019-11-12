@@ -43,6 +43,7 @@ def request_stock_data(symbol, output_size="compact"):
 
 
 # Alpha Advantage will spit these numbers out too, but the calculation isn't too hard
+@app.task()
 def compute_sma_rsi(symbol, start=None):
     logger.info(f"Computing SMA and RSI for {symbol}")
 
@@ -192,7 +193,15 @@ def update_symbol(symbol):
 @app.task()
 def update_symbols():
     with connect() as conn, conn.cursor() as cur:
-        cur.execute("SELECT symbol FROM symbols")
+        # I only update the least-recently-updated symbol, but I run this task every 5 minutes to round-robin the
+        # symbols I'm tracking. This isn't ideal.
+        cur.execute("""
+            SELECT symbol 
+            FROM symbols
+            WHERE initial_import_date IS NOT NULL 
+            ORDER BY last_update_date 
+            LIMIT 1
+        """)
         symbols = [record[0] for record in cur.fetchall()]
 
     for symbol in symbols:

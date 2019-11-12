@@ -18,10 +18,11 @@ app = Celery(
 )
 
 app.conf.beat_schedule = {
-    # Update symbols every hour. The service returns current day's result so this will change throughout the day
+    # Update 1 symbol every 5 minutes. That translates to 12 calls per hour or 288 per day, which keeps me under the
+    # rate limit
     "update_symbols": {
         "task": "tasks.update_symbols",
-        "schedule": crontab(minute=0, hour="*/1"),
+        "schedule": crontab(minute="*/5"),
     },
     # Generate the CSV reports after the market closes
     "generate_reports": {
