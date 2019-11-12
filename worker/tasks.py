@@ -92,6 +92,8 @@ def compute_sma_rsi(symbol, start=None):
     # Reformat the data for easier database updates
     df.insert(len(df.columns), "sma", sma)
     df.insert(len(df.columns), "rsi", rsi_step2)
+    df = df[df["sma"].notnull()]
+    df = df[df["rsi"].notnull()]
     data = [
         {
             "symbol": symbol,
