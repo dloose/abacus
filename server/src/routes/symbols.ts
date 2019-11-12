@@ -23,8 +23,6 @@ export default function init(): express.Router {
             const data = await conn.query(sql`
                 SELECT *
                 FROM symbols
-                WHERE
-                    initial_import_date IS NOT NULL
                 ORDER BY
                     symbol
             `);
@@ -90,7 +88,11 @@ export default function init(): express.Router {
                 return res.sendStatus(404);
             }
 
-            return res.status(200).json(data.rows);
+            if (data.rowCount !== 1) {
+                return res.sendStatus(500);
+            }
+
+            return res.status(200).json(data.rows[0]);
         }));
 
     return router;
