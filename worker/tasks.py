@@ -26,15 +26,20 @@ def request_stock_data(symbol, output_size="compact"):
 
         raw_data = (dict(zip(headers, line.split(","))) for line in lines)
 
-        for item in raw_data:
-            yield {
-                "symbol": symbol,
-                "date": item["timestamp"],
-                "open": float(item["open"]),
-                "close": float(item["close"]),
-                "high": float(item["high"]),
-                "low": float(item["low"]),
-            }
+        for raw_item in raw_data:
+            try:
+                item = {
+                    "symbol": symbol,
+                    "date": raw_item["timestamp"],
+                    "open": float(raw_item["open"]),
+                    "close": float(raw_item["close"]),
+                    "high": float(raw_item["high"]),
+                    "low": float(raw_item["low"]),
+                }
+                yield item
+            except KeyError:
+                logger.exception(f"Invalid item in raw data: {raw_item}")
+                raise
 
 
 # Alpha Advantage will spit these numbers out too, but the calculation isn't too hard
