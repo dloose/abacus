@@ -1,14 +1,26 @@
 # Running
 
+To start the back end, run the following commands from the repository's root directory.
+
 1. Copy the `.env.example` file to `.env`
 2. Uncomment the `POSTGRES_PASSWORD` line in the `.env` file and enter a suitable password
 3. Uncomment the `ALPHA_ADVANTAGE_API_KEY` line in the `.env` file and replace the value with your API key
 4. Start the application with `docker-compose up`
 
-# Usage
+To run the front end, you will need a few pre-requisites:
 
-There is no user interface in this version. I started on the backend first and ran out of time, but I would have 
-written a simple React app and used a library like [plotly](https://plot.ly/javascript/) to render the graphs.
+* Node 12
+* Yarn
+
+To start the front end, change to the `client` directory and run the following commands.
+
+1. `yarn install`
+2. `PORT=3001 yarn start`
+
+I did not have time to package the front end application so it is configured to proxy API requests to `localhost:3000`.
+The `docker-compose.yml` file is configured to forward that port into the Docker container.
+
+# API Usage
 
 ## Adding a symbol
 
