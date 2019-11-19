@@ -148,7 +148,7 @@ def initial_import(symbol):
 
         cur.execute("""
             UPDATE symbols 
-            SET initial_import_date = CURRENT_TIMESTAMP, last_update_date = CURRENT_DATE 
+            SET initial_import_date = CURRENT_TIMESTAMP, last_update_date = CURRENT_TIMESTAMP 
             WHERE symbol = %s
         """, [symbol])
 
@@ -182,7 +182,7 @@ def update_symbol(symbol):
 
         cur.execute("""
             UPDATE symbols 
-            SET last_update_date = CURRENT_DATE 
+            SET last_update_date = CURRENT_TIMESTAMP 
             WHERE symbol = %s
         """, [symbol])
 
